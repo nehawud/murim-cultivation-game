@@ -422,6 +422,59 @@ const NAMED_BOSSES = {
   },
 };
 
+/* ============================== DUNGEONS & HIDDEN REALMS ============================== */
+
+/* Dungeon kinds. floors are rolled between min/max on entry. */
+const DUNGEON_TYPES = {
+  ruins:        { name: "Ancient Ruins",     icon: "🏛️", minFloors: 3, maxFloors: 4, desc: "Sunken halls of a vanished sect, thick with dust, traps, and the dead who guard them." },
+  secret_realm: { name: "Secret Realm",      icon: "🌌", minFloors: 4, maxFloors: 5, desc: "A pocket world that opens but rarely, its air dense with concentrated qi." },
+  trial:        { name: "Inheritance Trial", icon: "🗿", minFloors: 5, maxFloors: 5, desc: "A dead master's final test, set to choose an heir for a lost art." },
+  vault:        { name: "Guarded Vault",     icon: "🔒", minFloors: 2, maxFloors: 3, desc: "A hoard behind one terrible guardian; little to loot but the last room." },
+};
+
+/* Rooms that fill the floors between the entrance and the final boss. */
+const DUNGEON_ROOMS = {
+  combat:   { name: "Guardian Hall",       icon: "⚔️", weight: 32, desc: "A guardian stirs among the ruins." },
+  elite:    { name: "Elite Chamber",       icon: "💀", weight: 14, desc: "A far deadlier foe waits here." },
+  treasure: { name: "Treasure Cache",      icon: "💰", weight: 18, desc: "Spoils left by those who never returned." },
+  hazard:   { name: "Trapped Passage",     icon: "⚠️", weight: 12, desc: "Old defenses still hunger." },
+  rest:     { name: "Sealed Spring",       icon: "🕯️", weight: 10, desc: "A pocket of clean qi to recover in." },
+  lore:     { name: "Ancient Inscription", icon: "📜", weight: 14, desc: "The wisdom of the fallen." },
+};
+
+/* Fixed dungeon entrances. rankIdx mirrors the enemy-rank ladder.
+   inheritance = technique ids this site's trial can bestow on completion. */
+const DUNGEON_SITES = [
+  { id: "whispering_barrows",  name: "The Whispering Barrows",    type: "ruins",  region: "willow_creek",        rankIdx: [1, 2], inheritance: ["mountain_fist", "iron_mountain_guard"] },
+  { id: "northern_catacombs",  name: "Northern Catacombs",        type: "ruins",  region: "northern_road",       rankIdx: [1, 3] },
+  { id: "blackwood_hollow",    name: "Blackwood Hollow",          type: "ruins",  region: "blackwood_forest",    rankIdx: [2, 3], inheritance: ["phantom_step", "soul_sever"] },
+  { id: "riverside_undercity", name: "Riverside Undercity",       type: "vault",  region: "riverside_city",      rankIdx: [2, 4], boss: "The Coin-Buried King" },
+  { id: "iron_deepvein",       name: "Iron Deepvein",             type: "ruins",  region: "iron_mountain",       rankIdx: [3, 5], inheritance: ["golden_body", "sect_iron_body"] },
+  { id: "azure_sepulcher",     name: "Azure Sepulcher",           type: "vault",  region: "azure_territory",     rankIdx: [4, 5], boss: "Blade-Spirit of the Azure Vault" },
+  { id: "shadow_sunken_shrine",name: "The Sunken Shrine",         type: "trial",  region: "shadow_marshes",      rankIdx: [5, 6], inheritance: ["sword_qi", "sect_silent_moon"] },
+  { id: "cloudveil_sky_tomb",  name: "Sky Tomb of Cloudveil",     type: "vault",  region: "cloudveil_mountains", rankIdx: [5, 7], boss: "The Cloud-Stepping Immortal" },
+  { id: "fallen_heaven_crypt", name: "The Dead Sect's Crypt",     type: "ruins",  region: "fallen_heaven",       rankIdx: [6, 7] },
+  { id: "fallen_heaven_trial", name: "Trial of Fallen Heaven",    type: "trial",  region: "fallen_heaven",       rankIdx: [6, 7], inheritance: ["nine_yang", "void_breath", "sword_immortal", "azure_dragon_sword"] },
+];
+
+/* Secret realms: not fixed to the map — they open in a region for a while, then close. */
+const SECRET_REALMS = [
+  { id: "sr_moonwell",     name: "The Moonwell Grotto",           type: "secret_realm", region: "blackwood_forest",    rankIdx: [2, 4], inheritance: ["sect_azure_lotus", "void_breath"] },
+  { id: "sr_dragon_vein",  name: "Dragon Vein Nexus",             type: "secret_realm", region: "iron_mountain",       rankIdx: [3, 5], inheritance: ["dragon_qi"] },
+  { id: "sr_sword_sea",    name: "Sea of Ten Thousand Swords",    type: "secret_realm", region: "azure_territory",     rankIdx: [4, 6], inheritance: ["sword_qi", "heavenly_sword_intent"] },
+  { id: "sr_void_rift",    name: "Rift of the Void",              type: "secret_realm", region: "shadow_marshes",      rankIdx: [5, 7], inheritance: ["void_breath", "primordial_qi"] },
+  { id: "sr_heaven_gate",  name: "The Gate of Fallen Heaven",     type: "secret_realm", region: "fallen_heaven",       rankIdx: [6, 7], inheritance: ["nine_yang", "sword_immortal"] },
+];
+
+/* Flavor lines for inscription (lore) rooms. */
+const DUNGEON_LORE = [
+  "a dying master scratches one last warning: do not trust the quiet.",
+  "a wall of disciples' names, every one struck through.",
+  "the founding oath of a sect that no longer exists.",
+  "a crude map to a vault that has long since been looted.",
+  "a promise carved in stone: the strong inherit, the rest remain.",
+];
+
 /* ============================== CLAN GACHA ============================== */
 
 const CLAN_RARITIES = {

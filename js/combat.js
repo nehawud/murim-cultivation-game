@@ -330,6 +330,7 @@ function winCombat() {
   const questId = enemy.questId;
   const wasChallenge = !!enemy.sectChallenge;
   if (typeof onEnemyDefeated === "function") onEnemyDefeated(enemy);
+  if (enemy.dungeon && typeof onDungeonFloorCleared === "function") onDungeonFloorCleared(enemy);
   state.enemy = null;
   state.poison = 0;
 
@@ -364,6 +365,7 @@ function loseCombat() {
   const enemy = state.enemy;
   const wasChallenge = !!(enemy && enemy.sectChallenge);
   if (enemy && typeof onPlayerDefeated === "function") onPlayerDefeated(enemy);
+  if (enemy && enemy.dungeon && typeof onDungeonEnd === "function") onDungeonEnd(false);
   state.enemy = null;
   if (wasChallenge && typeof resolveSectChallenge === "function") resolveSectChallenge(false);
   if (hadEscort) failEscort("You fell in battle; your charge was lost.");
@@ -376,10 +378,12 @@ function flee() {
   const per = PERSONALITIES[state.enemy.personality];
   const chance = per.noFlee ? 0.35 : 0.5;
   if (Math.random() < chance) {
-    addLog(`You slip away from the ${state.enemy.name}.`, "");
+    const escaped = state.enemy;
+    addLog(`You slip away from the ${escaped.name}.`, "");
     const hadEscort = !!state.escort;
     state.enemy = null;
     state.poison = 0;
+    if (escaped.dungeon && typeof onDungeonEnd === "function") onDungeonEnd(true);
     if (hadEscort) failEscort("You abandoned your charge to flee.");
     save(); render();
     return;

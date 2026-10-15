@@ -261,6 +261,9 @@ document.addEventListener("click", (event) => {
     case "train": seekTraining(el.dataset.npc); break;
     case "spar": sparNpc(el.dataset.npc); break;
     case "reconcile": reconcileNpc(el.dataset.npc); break;
+    case "dungeonEnter": startDungeon(el.dataset.site); break;
+    case "dungeonDescend": dungeonDescend(); break;
+    case "dungeonRetreat": dungeonRetreat(); break;
     case "travel": travelTo(el.dataset.region); break;
     case "accept": acceptQuest(el.dataset.qid); break;
     case "turnin": turnInQuest(); break;

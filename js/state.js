@@ -47,6 +47,11 @@ function defaultState() {
     standing: {},
     worldThreat: {},
 
+    /* dungeons & hidden realms */
+    dungeon: null,
+    secretRealms: {},
+    dungeonsCleared: 0,
+
     /* bonds & relationships (per-NPC score + type, separate from faction standing) */
     npcs: {
       elder_rong: { score: 12, type: null, met: true, region: "willow_creek", history: [], wins: 0, losses: 0, power: 0, status: "active" },
@@ -141,6 +146,15 @@ function load() {
     if (!s.standing) s.standing = {};
     if (!s.materials) s.materials = {};
     if (!s.worldThreat) s.worldThreat = {};
+    if (!s.secretRealms || typeof s.secretRealms !== "object") s.secretRealms = {};
+    if (typeof s.dungeonsCleared !== "number") s.dungeonsCleared = 0;
+    if (s.dungeon && typeof s.dungeon === "object") {
+      if (!s.dungeon.loot) s.dungeon.loot = { silver: 0, materials: {}, manuals: [], pills: 0, gear: [], spins: 0, essence: 0, techs: [] };
+      if (!Array.isArray(s.dungeon.plan) || !s.dungeon.plan.length) s.dungeon = null;
+      else s.dungeon.awaiting = true; /* reloading reopens the current floor */
+    } else {
+      s.dungeon = null;
+    }
     if (!s.questBoard) s.questBoard = {};
     if (!s.questBoardDay) s.questBoardDay = {};
     if (!s.questLog) s.questLog = [];

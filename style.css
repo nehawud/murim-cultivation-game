@@ -417,3 +417,20 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 @media (hover: none) {
   button:hover { border-color: var(--line); background: var(--panel-2); }
 }
+
+/* ---------- dungeons & hidden realms ---------- */
+.dungeon-card { border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin:8px 0; background:#0e1310; }
+.dungeon-card.secret { border-color: var(--purple); background:#141020; }
+.dungeon-card.secret .dungeon-name { color:#c9a4f0; }
+.dungeon-run { border:1px solid var(--jade-dim); border-radius:12px; padding:12px 14px; margin:4px 0 12px; background:#101c15; }
+.dungeon-head { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:6px; }
+.dungeon-name { font-size:15px; color:var(--gold); letter-spacing:0.5px; }
+.floor-line { font-size:13px; color:var(--muted); margin:6px 0; }
+.floor-line b { color:var(--ink); }
+.floor-track { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+.floor-dot { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:8px; background:#0e1310; font-size:15px; opacity:0.55; }
+.floor-dot.current { opacity:1; border-color:var(--gold); box-shadow:0 0 10px rgba(217,180,90,0.25); }
+.floor-dot.done { opacity:1; border-color:var(--jade-dim); background:#12251b; }
+.loot-line { font-size:12px; color:var(--jade); margin:6px 0 8px; }
+.loot-line b { color:var(--ink); }
+.etag.elite { color:var(--purple); border-color:#4a3566; }

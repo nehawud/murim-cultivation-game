@@ -232,6 +232,7 @@ function worldTick() {
   }
   if (typeof sectTick === "function") sectTick();
   if (typeof bondsTick === "function") bondsTick();
+  if (typeof dungeonsTick === "function") dungeonsTick();
 }
 
 /* Fires when entering a region in unrest. */

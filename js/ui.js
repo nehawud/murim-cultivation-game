@@ -68,6 +68,7 @@ function render() {
   renderAdvanceButton();
   renderQuests();
   renderWorld();
+  renderDungeons();
   renderTechniques();
   renderSkills();
   renderEquipment();
@@ -279,6 +280,100 @@ function renderWorld() {
     </div>`;
   }
 
+  panel.innerHTML = html;
+}
+/* ============================== DUNGEONS TAB ============================== */
+
+function dungeonDanger(site) {
+  const [lo, hi] = site.rankIdx;
+  const my = playerCombatRankIdx();
+  if (my > hi + 1) return "trivial";
+  if (my > hi) return "easy";
+  if (my >= lo) return "fitting";
+  if (my >= lo - 1) return "dangerous";
+  return "deadly";
+}
+
+function dungeonSiteCard(site, secret) {
+  const type = DUNGEON_TYPES[site.type];
+  const danger = dungeonDanger(site);
+  const canEnter = !state.enemy && !state.dungeon && site.region === state.region;
+  const depth = type.minFloors === type.maxFloors ? `${type.minFloors}` : `${type.minFloors}–${type.maxFloors}`;
+  return `<div class="dungeon-card${secret ? " secret" : ""}">
+    <div class="dungeon-head">
+      <span class="dungeon-name">${type.icon} ${site.name}</span>
+      <span class="tag">${type.name}</span>
+      <span class="danger-${danger}">${DANGER_LABEL[danger]}</span>
+    </div>
+    <p class="region-desc">${type.desc}</p>
+    <div class="region-meta">
+      <span>Guardians: <b>${ENEMY_RANKS[site.rankIdx[0]].name}–${ENEMY_RANKS[site.rankIdx[1]].name}</b></span>
+      <span>Depth: ${depth} floors</span>
+      ${site.inheritance ? `<span>Inheritance: <b>possible</b></span>` : ""}
+      ${secret ? `<span class="tag gold">Closes in ${fmtDuration(secret.msLeft)}</span>` : ""}
+    </div>
+    <button class="act ${secret ? "primary" : ""} small" data-action="dungeonEnter" data-site="${site.id}" ${canEnter ? "" : "disabled"}>Enter Dungeon</button>
+  </div>`;
+}
+
+function renderDungeons() {
+  const panel = document.querySelector('[data-panel="dungeons"]');
+  if (!panel || typeof dungeonAvailableSites !== "function") return;
+  let html = "";
+  const run = state.dungeon;
+
+  if (run) {
+    const type = DUNGEON_TYPES[run.type];
+    html += `<div class="dungeon-run">
+      <div class="dungeon-head">
+        <span class="dungeon-name">${type.icon} ${run.name}</span>
+        <span class="tag">${type.name}</span>
+      </div>
+      <div class="floor-line">Floor <b>${run.floor}</b> / ${run.floors} · ${run.cleared} cleared</div>
+      <div class="floor-track">`;
+    for (let i = 1; i <= run.floors; i++) {
+      const kind = run.plan[i - 1];
+      const icon = i === run.floors ? (run.type === "trial" ? "🗿" : "👑") : DUNGEON_ROOMS[kind].icon;
+      const label = i === run.floors ? "Boss" : DUNGEON_ROOMS[kind].name;
+      const done = i < run.floor || (i === run.floor && !state.enemy && run.awaiting);
+      const cls = done ? "done" : i === run.floor ? "current" : "";
+      html += `<span class="floor-dot ${cls}" title="Floor ${i}: ${label}">${icon}</span>`;
+    }
+    html += `</div>
+      <div class="loot-line">Spoils this run (banked on exit): <b>${dungeonLootText(run.loot)}</b></div>`;
+    if (state.enemy) {
+      html += `<p class="hint">A guardian bars the way — resolve the battle to continue deeper.</p>`;
+    } else if (run.awaiting) {
+      html += `<div class="hub-actions">
+        <button class="act primary small" data-action="dungeonDescend">Descend deeper</button>
+        <button class="act small" data-action="dungeonRetreat">Retreat with spoils</button>
+      </div>`;
+    }
+    html += `<p class="hint">Deeper floors mean deadlier guardians — and richer spoils. Die here and the run's unbanked spoils are lost.</p></div>`;
+  } else {
+    html += `<p class="hint">Dungeons hide treasure, lost martial inheritance, and things best left buried. Enter one from the region it dwells in — deeper floors mean richer spoils and deadlier guardians.</p>`;
+  }
+
+  const here = dungeonAvailableSites(state.region);
+  html += `<h3 class="section-title">${currentRegion().name} — Entrances <span class="hint">(${here.length})</span></h3>`;
+  if (!here.length) html += `<p class="hint">No dungeon entrances are known in this region.</p>`;
+  else for (const { site, secret } of here) html += dungeonSiteCard(site, secret);
+
+  const elsewhere = openSecretRealmList().filter((sr) => sr.regionId !== state.region);
+  html += `<h3 class="section-title">Secret Realms Open Elsewhere <span class="hint">(${elsewhere.length})</span></h3>`;
+  if (!elsewhere.length) html += `<p class="hint">None are open at present. Secret realms appear and seal again with the turning of the world.</p>`;
+  else for (const sr of elsewhere) {
+    html += `<div class="dungeon-card secret">
+      <div class="dungeon-head"><span class="dungeon-name">🌌 ${sr.site.name}</span><span class="tag gold">Closes in ${fmtDuration(sr.msLeft)}</span></div>
+      <div class="region-meta">
+        <span>Opened in <b>${regionById(sr.regionId).name}</b></span>
+        <span>Guardians: ${ENEMY_RANKS[sr.site.rankIdx[0]].name}–${ENEMY_RANKS[sr.site.rankIdx[1]].name}</span>
+      </div>
+      <p class="hint">Travel there before it seals.</p>
+    </div>`;
+  }
+
+  html += `<p class="hint">Dungeons cleared: <b>${state.dungeonsCleared}</b>.</p>`;
   panel.innerHTML = html;
 }
 
@@ -838,7 +933,9 @@ function renderCombat() {
   $("enemyTags").innerHTML =
     `<span class="etag">${type.name}</span>` +
     `<span class="etag">${e.personalityName}</span>` +
-    (e.boss ? `<span class="etag boss">Boss</span>` : "");
+    (e.boss ? `<span class="etag boss">Boss</span>` : "") +
+    (e.elite ? `<span class="etag elite">Elite</span>` : "") +
+    (e.dungeon ? `<span class="etag">Dungeon · Floor ${e.dungeonFloor}</span>` : "");
 
   $("enemyHpText").textContent = `${Math.max(0, Math.floor(e.hp)).toLocaleString()} / ${e.maxHp.toLocaleString()}`;
   $("enemyHpFill").style.width = pct(e.hp, e.maxHp) + "%";
