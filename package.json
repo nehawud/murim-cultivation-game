@@ -1,0 +1,19 @@
+{
+  "name": "murim-cultivation-game",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hardcore Murim cultivation game — offline sandbox plus server-authoritative online mode.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js",
+    "serve": "node tools/static-server.js",
+    "build:dist": "node tools/build-dist.js",
+    "test:browser": "playwright test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

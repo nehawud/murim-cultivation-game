@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#0c0f0d" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="format-detection" content="telephone=no" />
+<title>Murim Cultivation — Jianghu</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="frame">
+  <header class="topbar">
+    <div class="title">
+      <h1>江湖 · Murim Cultivation</h1>
+      <p class="subtitle">Gather qi. Break through. Master the martial world.</p>
+    </div>
+    <div class="topbar-right">
+      <div class="location" id="topLocation">Willow Creek Village</div>
+      <button class="ghost" data-action="reset" title="Erase your progress">Reset</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: character + actions -->
+    <div class="col-left">
+      <section class="panel character">
+        <h2>Your Path</h2>
+        <div class="rank-row">
+          <span class="rank" id="rankName">Body Tempering</span>
+          <span class="level-chip">Lv <b id="levelNum">1</b></span>
+        </div>
+        <div class="stage-line">
+          <span id="stageName">Skin Tempering</span>
+          <span class="tag" id="stageGroupTag">Early</span>
+          <span class="tag gold" id="tierTag">Tier 1</span>
+        </div>
+
+        <div class="bar-block">
+          <div class="bar-label"><span>Experience</span><span id="xpText">0 / 60</span></div>
+          <div class="bar xp"><div class="fill" id="xpFill"></div></div>
+        </div>
+
+        <div class="bar-block">
+          <div class="bar-label"><span>Qi <span id="qiStageHint"></span></span><span id="qiText">0 / 120</span></div>
+          <div class="bar qi"><div class="fill" id="qiFill"></div></div>
+        </div>
+
+        <div class="bar-block">
+          <div class="bar-label"><span>Health</span><span id="hpText">100 / 100</span></div>
+          <div class="bar hp"><div class="fill" id="hpFill"></div></div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat"><span>Attack</span><b id="statAttack">6</b></div>
+          <div class="stat"><span>Crit</span><b id="statCrit">5%</b></div>
+          <div class="stat"><span>Qi / sec</span><b id="statQiSec">0</b></div>
+          <div class="stat"><span>Gather / click</span><b id="statGather">5</b></div>
+          <div class="stat"><span>Technique DMG</span><b id="statDmg">+0%</b></div>
+          <div class="stat"><span>Points</span><b id="statPoints">0</b></div>
+          <div class="stat"><span>Qi Control</span><b id="statControl">0</b></div>
+          <div class="stat"><span>Foundation</span><b id="statFoundation">0</b></div>
+        </div>
+
+        <div class="repute-row">
+          <span class="repute" id="reputeTitle">Neutral</span>
+          <span class="repute-sub">Renown <b id="renownVal">0</b></span>
+          <span class="repute-sub">Silver <b id="silverVal">0</b></span>
+        </div>
+        <div class="rates">
+          <span>🗡️ Slain: <b id="defeated">0</b></span>
+          <span>💊 Pills: <b id="pillCount">0</b></span>
+        </div>
+      </section>
+
+      <section class="panel actions">
+        <h2>Actions</h2>
+        <button class="act primary" data-action="gather">⛲ Gather Qi</button>
+        <button class="act" data-action="advance" id="advanceBtn">☯ Advance Stage</button>
+        <p class="hint" id="advanceHint"></p>
+        <button class="act" data-action="explore">🧭 Explore Region</button>
+        <button class="act" data-action="hunt">⚔️ Hunt for Enemies</button>
+        <button class="act" data-action="rest">🛌 Meditate to Rest (heal)</button>
+      </section>
+    </div>
+
+    <!-- RIGHT: tabbed panels -->
+    <div class="col-right">
+      <section class="panel tabs-panel">
+        <nav class="tabs">
+          <button class="tab active" data-tab="quests">Quests</button>
+          <button class="tab" data-tab="world">World</button>
+          <button class="tab" data-tab="techniques">Techniques</button>
+          <button class="tab" data-tab="skills">Skills</button>
+          <button class="tab" data-tab="equipment">Equipment</button>
+          <button class="tab" data-tab="faction">Faction</button>
+          <button class="tab" data-tab="clan">Clan</button>
+          <button class="tab" data-tab="sect">Sect</button>
+          <button class="tab" data-tab="journal">Journal</button>
+          <button class="tab" data-tab="info">Info</button>
+        </nav>
+        <div class="tab-panels">
+          <div class="tab-panel" data-panel="quests"></div>
+          <div class="tab-panel" data-panel="world" hidden></div>
+          <div class="tab-panel" data-panel="techniques" hidden></div>
+          <div class="tab-panel" data-panel="skills" hidden></div>
+          <div class="tab-panel" data-panel="equipment" hidden></div>
+          <div class="tab-panel" data-panel="faction" hidden></div>
+          <div class="tab-panel" data-panel="clan" hidden></div>
+          <div class="tab-panel" data-panel="sect" hidden></div>
+          <div class="tab-panel" data-panel="journal" hidden></div>
+          <div class="tab-panel" data-panel="info" hidden></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- LOG -->
+    <section class="panel log-panel">
+      <h2>Chronicle</h2>
+      <div id="log" class="log"></div>
+    </section>
+  </div>
+</div>
+
+<!-- COMBAT OVERLAY -->
+<div class="overlay" id="combatOverlay" hidden>
+  <div class="combat">
+    <div class="combat-head">
+      <div>
+        <h2 id="enemyName">Enemy</h2>
+        <div class="enemy-tags" id="enemyTags"></div>
+      </div>
+      <div class="enemy-rank" id="enemyRankChip"></div>
+    </div>
+
+    <div class="bar-block">
+      <div class="bar-label"><span>Enemy Health</span><span id="enemyHpText"></span></div>
+      <div class="bar enemy"><div class="fill" id="enemyHpFill"></div></div>
+    </div>
+
+    <div class="bar-block npc-bar" id="npcBar" hidden>
+      <div class="bar-label"><span id="npcName">Protect</span><span id="npcHpText"></span></div>
+      <div class="bar npc"><div class="fill" id="npcHpFill"></div></div>
+    </div>
+
+    <div class="bar-block">
+      <div class="bar-label"><span>Your Health <span id="poisonTag" class="poison-tag" hidden>☠ poisoned</span></span><span id="combatHpText"></span></div>
+      <div class="bar hp"><div class="fill" id="combatHpFill"></div></div>
+    </div>
+    <div class="bar-block">
+      <div class="bar-label"><span>Your Qi</span><span id="combatQiText"></span></div>
+      <div class="bar qi"><div class="fill" id="combatQiFill"></div></div>
+    </div>
+
+    <h3>Choose a technique</h3>
+    <div id="combatTechs" class="combat-techs"></div>
+    <div class="combat-log" id="combatLog"></div>
+    <div class="combat-actions">
+      <div id="combatChoices" class="combat-choices"></div>
+      <button class="act danger" data-action="flee">🏃 Flee</button>
+    </div>
+  </div>
+</div>
+
+<!-- OFFLINE OVERLAY -->
+<div class="overlay" id="offlineOverlay" hidden>
+  <div class="offline">
+    <h2>Welcome Back</h2>
+    <p id="offlineText"></p>
+    <button class="act primary" data-action="closeOffline">Continue Cultivating</button>
+  </div>
+</div>
+
+<!-- EVENT / RESULT OVERLAY -->
+<div class="overlay" id="eventOverlay" hidden>
+  <div class="event-card">
+    <h2 id="eventTitle">Event</h2>
+    <p id="eventBody"></p>
+    <div id="eventChoices" class="event-choices"></div>
+  </div>
+</div>
+
+  <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/techniques.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/combat.js"></script>
+  <script src="js/quests.js"></script>
+  <script src="js/gacha.js"></script>
+  <script src="js/sects.js"></script>
+  <script src="js/bonds.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
