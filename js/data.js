@@ -399,6 +399,7 @@ const QUEST_CATEGORIES = {
   escort:    { name: "Escort",     color: "blue",  icon: "🛡️" },
   cultivation:{ name: "Cultivation", color: "purple", icon: "☯" },
   faction:   { name: "Faction",    color: "teal",  icon: "🏯" },
+  morality:  { name: "Moral Path", color: "purple", icon: "⚖️" },
 };
 
 /* Difficulty ladder. rewardScale multiplies base rewards. */
@@ -846,3 +847,159 @@ for (const s of SECTS) {
 }
 
 const npcById = (id) => NPCS.find((n) => n.id === id) || null;
+
+/* ============================== KARMA & MORALITY ==============================
+
+   A morality LEDGER atop alignment. Alignment (-100..100) is the axis;
+   karma tallies the notable deeds that pushed you along it; bounty turns
+   notoriety into a hunted name; path is the label the world uses for you. */
+
+const KARMA_PATHS = {
+  heroic:  { name: "Heroic Path",  icon: "☀️", cls: "good",  desc: "The righteous way: shield the weak and punish the wicked. Righteous sects open their gates; the hunted grow bold in your presence." },
+  neutral: { name: "Neutral Path", icon: "☯️", cls: "",      desc: "You walk your own road, owing nothing to heaven or hell. Few doors close; few open wide." },
+  demonic: { name: "Demonic Path", icon: "🌑", cls: "worst", desc: "The dark way: seize all, spare none. Demonic sects welcome you; honest merchants bar their doors and bounty hunters gather." },
+};
+
+/* Wanted tiers scale the bounty price on your head and how hard the jianghu hunts you. */
+const WANTED_LEVELS = [
+  { level: 0, min: 0,   name: "Clean Record", hunterChance: 0,    desc: "No price on your head." },
+  { level: 1, min: 60,  name: "Suspect",      hunterChance: 0.12, desc: "Local enforcers keep watch for you." },
+  { level: 2, min: 180, name: "Outlaw",       hunterChance: 0.28, desc: "Bounty hunters trail your steps." },
+  { level: 3, min: 420, name: "Most Wanted",  hunterChance: 0.45, desc: "The whole jianghu hunts you openly." },
+];
+
+/* Notable evil deeds — tracked via bond actions and own-sect killings. */
+const KARMA_EVIL_ACTIONS = {
+  betrayed_sworn: { evil: 24, bounty: 160, label: "betraying a sworn sibling" },
+  betrayed_sect:  { evil: 18, bounty: 120, label: "betraying a sect" },
+  attacked_kin:   { evil: 14, bounty: 90,  label: "harming the kin of another" },
+  humiliated:     { evil: 10, bounty: 60,  label: "public cruelty" },
+  stole_from:     { evil: 8,  bounty: 40,  label: "theft from a bond" },
+  abandoned:      { evil: 6,  bounty: 30,  label: "abandoning a companion" },
+};
+
+/* Notable righteous deeds. */
+const KARMA_GOOD_ACTIONS = {
+  saved_life:   { good: 12, renown: 8, label: "saving a life" },
+  spared_them:  { good: 8,  renown: 4, label: "showing mercy" },
+  kept_promise: { good: 5,  renown: 3, label: "keeping your word" },
+};
+
+/* Path-exclusive deeds posted to the region board. */
+const PATH_QUEST_TEMPLATES = {
+  heroic: [
+    { title: "Purge the Wicked",   giver: "Righteous Magistrate", type: "kill", typeId: "bandit",       count: 3, alignment: 6,  renown: 8,  desc: "A magistrate asks you to thin the lawless haunting {region}." },
+    { title: "Shield the Weak",    giver: "Village Elder",        type: "kill", typeId: "bandit",       count: 2, alignment: 5,  renown: 6,  desc: "Drive the raiders away from the frightened folk of {region}." },
+    { title: "Root Out Corruption", giver: "Orthodox Envoy",      type: "kill", typeId: "rogue_cultivator", count: 3, alignment: 6, renown: 7, desc: "Hunt the rogue cultivators preying on travelers in {region}." },
+  ],
+  demonic: [
+    { title: "A Silent Elimination", giver: "Shadowed Patron", type: "kill", typeId: "sect_member", count: 2, alignment: -8, renown: 10, bounty: 40, desc: "A hooded patron pays well to remove rivals of {region}." },
+    { title: "Extortion",            giver: "Black-Market Broker", type: "kill", typeId: "bandit",  count: 3, alignment: -6, renown: 8,  bounty: 30, desc: "Collect 'tribute' from the defiant of {region}, by any means." },
+    { title: "Blood Tribute",        giver: "Demonic Cult Envoy",  type: "kill", typeId: "sect_member", count: 3, alignment: -9, renown: 12, bounty: 60, desc: "Feed the cult's hunger with the blood of {region}'s best." },
+  ],
+};
+
+/* ============================== DYNAMIC WORLD EVENTS ==============================
+
+   The world moves on its own: warbands rise, sects clash, strangers appear,
+   beasts stalk the wilds, and treasures lie briefly unclaimed. Events are
+   region-scoped, time-limited, and often interactable. */
+
+const WORLD_EVENT_MIN_MS = 20 * 60 * 1000;
+const WORLD_EVENT_MAX_ACTIVE = 3;
+const WORLD_EVENT_SPAWN_CHANCE = 0.35;
+
+const WORLD_EVENT_TYPES = {
+  bandit_invasion:    { name: "Bandit Invasion",     icon: "🏴", duration: [25, 45], desc: "A warband sweeps the region; the roads boil with raiders and the unrest climbs." },
+  sect_war:           { name: "Sect War",            icon: "⚔️", duration: [30, 60], desc: "Two powers clash. Every disciple on the road is a foe, and taking a side earns standing." },
+  traveling_merchant: { name: "Traveling Merchant",  icon: "🛒", duration: [20, 35], desc: "A wandering trader sets up a stall of rare wares — gone when the caravan rolls on." },
+  mysterious_stranger:{ name: "Mysterious Stranger", icon: "🎭", duration: [20, 40], desc: "A cloaked figure waits with an offer, a rumour, or a trap." },
+  rare_beast:         { name: "Rare Beast",          icon: "🐉", duration: [30, 50], desc: "A fabled beast has been sighted — a fortune in materials and renown for whoever fells it." },
+  contested_treasure: { name: "Contested Treasure",  icon: "💎", duration: [20, 40], desc: "A cache of treasure lies unclaimed — but the wise expect a guardian." },
+  world_boss:         { name: "World Boss",          icon: "☠️", duration: [45, 90], desc: "A calamity-level foe has surfaced; heroes gather to fell it before it ruins the land." },
+};
+
+const EVENT_SPAWN_WEIGHTS = [
+  ["bandit_invasion", 20], ["sect_war", 12], ["traveling_merchant", 16],
+  ["mysterious_stranger", 16], ["rare_beast", 16], ["contested_treasure", 14], ["world_boss", 6],
+];
+
+const RARE_BEASTS = [
+  { id: "jade_serpent",   name: "Jade Serpent of the Deep", typeId: "rogue_cultivator", personality: "cunning",    hpMul: 1.5, atkMul: 1.15, xpMul: 2.2, reward: { silver: 120, renown: 25, manual: "m_dragon" } },
+  { id: "bloodmane_tiger", name: "Bloodmane Tiger",         typeId: "boss",             personality: "aggressive", hpMul: 1.6, atkMul: 1.20, xpMul: 2.4, reward: { silver: 160, renown: 30, materials: { rare_material: 1 } } },
+  { id: "thunder_roc",    name: "Thunder Roc",              typeId: "rogue_cultivator", personality: "tactical",   hpMul: 1.4, atkMul: 1.30, xpMul: 2.0, reward: { silver: 140, renown: 24, materials: { spirit_stone: 2 } } },
+];
+
+const WORLD_BOSSES = [
+  { id: "iron_tyrant", name: "The Iron Tyrant", title: "World Calamity", rankPreferred: "grandmaster", personality: "ruthless",   hpMul: 2.0, atkMul: 1.25, reward: { silver: 400, renown: 80, manual: "m_nine", pills: 1 }, titleId: "calamity_slayer" },
+  { id: "void_wyrm",   name: "Void Wyrm",       title: "Devourer of Realms", rankPreferred: "legendary", personality: "tactical", hpMul: 2.2, atkMul: 1.30, reward: { silver: 500, renown: 90, manual: "m_void", pills: 2 }, titleId: "calamity_slayer" },
+];
+
+const EVENT_STRANGERS = [
+  { id: "blind_diviner",  name: "The Blind Diviner", flavor: "sightless eyes that see what mortals cannot." },
+  { id: "masked_envoys",  name: "A Masked Envoy",    flavor: "silk, spice, and the smell of old blood." },
+  { id: "wandering_monk", name: "A Wandering Monk",  flavor: "barefoot, patient, and unarmed — or so it seems." },
+];
+
+const EVENT_MERCHANT_WARES = [
+  { id: "w_herb",   name: "Bundle of Wild Herbs",   cost: 60,  kind: "material", ref: "wild_herb",   amount: 5 },
+  { id: "w_spirit", name: "Pouch of Spirit Stones", cost: 200, kind: "material", ref: "spirit_stone", amount: 3 },
+  { id: "w_pill",   name: "Breakthrough Pill",      cost: 90,  kind: "pill",     amount: 1 },
+  { id: "w_manual", name: "Wandering Manual",       cost: 260, kind: "manual",   ref: "m_cloud" },
+  { id: "w_iron",   name: "Bar of Iron Ore",        cost: 40,  kind: "material", ref: "iron_ore",    amount: 4 },
+];
+
+const CONTESTED_TREASURES = [
+  { id: "warchest",   name: "A Buried Warchest",              reward: { silver: 220, materials: { spirit_stone: 2 } } },
+  { id: "storage_ring", name: "A Fallen Cultivator's Ring",   reward: { manual: "m_azure", renown: 15 } },
+  { id: "jade_coffer", name: "A Sealed Jade Coffer",          reward: { pills: 2, silver: 120 } },
+  { id: "relic",      name: "Shards of an Ancient Relic",     reward: { materials: { rare_material: 2 }, silver: 80 } },
+];
+
+/* ============================== TOURNAMENTS & RANKINGS ==============================
+
+   A local, single-player arena: a drifting leaderboard of named rivals, ranked
+   duels, an open regional meet, and a closed sect tournament. Winning earns
+   rating, titles, and standing in the jianghu's imagination. */
+
+const ARENA_SEASON_MS = 7 * 24 * 3600 * 1000;
+const ARENA_RIVALS = [
+  { name: "Yun Fei",     epithet: "the Cloud-Stepping Blade", sect: "Heavenly Sword Sect" },
+  { name: "Jin Wei",     epithet: "the Prodigy",              sect: "Unaligned" },
+  { name: "Mei Lin",     epithet: "the Azure Bloom",          sect: "Azure Lotus Sect" },
+  { name: "Tie Shan",    epithet: "the Immovable",            sect: "Iron Mountain Sect" },
+  { name: "Leng Wu",     epithet: "Blood-Moon Reaper",        sect: "Blood Moon Sect" },
+  { name: "Su Ling",     epithet: "the Silent Crescent",      sect: "Silent Moon Sanctuary" },
+  { name: "Bai He",      epithet: "the White Crane",          sect: "Unaligned" },
+  { name: "Fang Yu",     epithet: "Spear of Ten Armies",      sect: "Heavenly Spear Clan" },
+  { name: "Qin Zhao",    epithet: "the Thunderclap",          sect: "Unaligned" },
+  { name: "Hei Ying",    epithet: "the Ninefold Shadow",      sect: "Shadow Pavilion" },
+  { name: "Wu Kang",     epithet: "the Mountain Breaker",     sect: "Iron Mountain Sect" },
+  { name: "Xue Rong",    epithet: "the Crimson Phoenix",      sect: "Celestial Phoenix Clan" },
+  { name: "Mo Yan",      epithet: "the Void Walker",          sect: "Unaligned" },
+  { name: "Lin Shuang",  epithet: "Frost of the Northern Peaks", sect: "Azure Dragon Clan" },
+  { name: "Gu Tian",     epithet: "the Grand Elder's Heir",   sect: "Heavenly Sword Sect" },
+  { name: "Long Xin",    epithet: "the Dragon's Fang",        sect: "Primordial Dragon Clan" },
+];
+
+const TOURNAMENTS = {
+  regional: {
+    id: "regional", name: "Regional Martial Meet", rounds: 4, entrants: 16, rankScale: 1,
+    desc: "An open jianghu tournament. Best four challengers in a row to be crowned champion.",
+    rewards: { silver: 600, qi: 900, xp: 420, renown: 35 },
+  },
+  sect: {
+    id: "sect", name: "Sect Tournament", rounds: 3, entrants: 8, rankScale: 1,
+    desc: "A closed contest among your own sect's disciples. Win three bouts to take the title.",
+    rewards: { contribution: 800, qi: 600, xp: 300, renown: 20 },
+  },
+};
+
+const TITLES = {
+  regional_champion: { name: "Regional Champion",           desc: "Won a Regional Martial Meet." },
+  sect_champion:     { name: "Sect Tournament Victor",      desc: "Won your sect's tournament." },
+  ranked_first:      { name: "Ranked First Under Heaven",   desc: "Topped the jianghu rankings." },
+  calamity_slayer:   { name: "Calamity Slayer",             desc: "Felled a world boss." },
+  beast_slayer:      { name: "Beast Slayer",                desc: "Brought down a rare beast." },
+  duelist:           { name: "Arena Duelist",               desc: "Won a ranked duel." },
+};

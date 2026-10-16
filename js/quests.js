@@ -129,6 +129,11 @@ function generateBoard(region) {
     const q = maker(region);
     if (q && !used.has(q.title)) { used.add(q.title); quests.push(q); }
   }
+  /* a path-gated deed, posted only to those who walk that road */
+  if (typeof pathQuestBoard === "function") {
+    const pq = pathQuestBoard(region);
+    if (pq && !used.has(pq.title)) { used.add(pq.title); quests.push(pq); }
+  }
   return quests;
 }
 
@@ -289,6 +294,7 @@ function completeQuest(q) {
   if (r.materials) for (const [m, c] of Object.entries(r.materials)) addMaterial(m, c);
   if (r.standing) for (const [f, v] of Object.entries(r.standing)) adjustStanding(f, v);
   adjustReputation({ renown: r.renown || 0, alignment: r.alignment || 0 });
+  if (typeof onQuestCompleted === "function") onQuestCompleted(q);
 
   for (const [f, v] of Object.entries(q.flagsOnDone || {})) state.flags[f] = v;
 

@@ -66,7 +66,10 @@ function travelTo(id) {
   questEvent("travel", { regionId: id });
 
   /* criminal notoriety draws bounty hunters on the road */
-  if (state.reputation.alignment <= -30 && Math.random() < 0.35) {
+  const hunted = typeof bountyAmbushCheck === "function"
+    ? bountyAmbushCheck()
+    : (state.reputation.alignment <= -30 && Math.random() < 0.35);
+  if (hunted) {
     addLog("A bounty hunter steps from the roadside, blade drawn!", "bad");
     spawnBountyHunter();
   }
@@ -233,6 +236,9 @@ function worldTick() {
   if (typeof sectTick === "function") sectTick();
   if (typeof bondsTick === "function") bondsTick();
   if (typeof dungeonsTick === "function") dungeonsTick();
+  if (typeof karmaTick === "function") karmaTick();
+  if (typeof worldEventsTick === "function") worldEventsTick();
+  if (typeof arenaTick === "function") arenaTick();
 }
 
 /* Fires when entering a region in unrest. */
@@ -251,6 +257,7 @@ function clearBanditPressure(amount) {
 /* ============================== MERCHANTS ============================== */
 
 function merchantRefuses() {
+  if (typeof karmaRefusesTrade === "function" && karmaRefusesTrade()) return true;
   return (state.standing.merchant_guild || 0) <= -20;
 }
 

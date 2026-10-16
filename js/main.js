@@ -264,6 +264,13 @@ document.addEventListener("click", (event) => {
     case "dungeonEnter": startDungeon(el.dataset.site); break;
     case "dungeonDescend": dungeonDescend(); break;
     case "dungeonRetreat": dungeonRetreat(); break;
+    case "eventBuy": buyEventWare(el.dataset.id, el.dataset.ware); break;
+    case "eventStranger": meetStranger(el.dataset.id); break;
+    case "eventClaim": claimContestedTreasure(el.dataset.id); break;
+    case "eventSide": supportSectSide(el.dataset.id, el.dataset.faction); break;
+    case "arenaDuel": arenaDuel(); break;
+    case "arenaTournament": if (state.tournament) tournamentSpawn(); else startTournament(el.dataset.kind); break;
+    case "arenaForfeit": tournamentForfeit(); break;
     case "travel": travelTo(el.dataset.region); break;
     case "accept": acceptQuest(el.dataset.qid); break;
     case "turnin": turnInQuest(); break;
@@ -287,6 +294,7 @@ document.addEventListener("click", (event) => {
 applyOfflineProgress();
 state.hp = Math.min(state.hp, stats().maxHp);
 ensureBoard(currentRegion());
+if (typeof ensureArena === "function") ensureArena();
 if (state.sect && typeof refreshSectMissions === "function") refreshSectMissions(false);
 if (!state.log.length) addLog("You awaken in the mortal world, a martial aspirant with a faint spark of qi.", "gold");
 if (typeof storage !== "undefined" && !storage.available) {

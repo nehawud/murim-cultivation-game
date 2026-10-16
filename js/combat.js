@@ -38,6 +38,7 @@ function buildEnemy(region, rankIdx, typeId, personalityId, opts = {}) {
     drops: type.drops.slice(),
     manuals: type.manuals.slice(),
     questId: opts.questId || null,
+    worldEventId: opts.worldEventId || null,
     fleeHp: opts.bossFlee != null ? opts.bossFlee : null,
     enraged: false,
     calledHelp: false,
@@ -86,7 +87,7 @@ function afterEnemySpawn() {
 
 const hunt = () => {
   if (state.enemy) return;
-  const spec = questTargetSpawn();
+  const spec = (typeof worldEventHuntTarget === "function" ? worldEventHuntTarget() : null) || questTargetSpawn();
   if (spec) spawnEnemyInRegion(currentRegion(), spec);
   else spawnEnemyInRegion(currentRegion());
   save(); render();
@@ -291,6 +292,8 @@ function winCombat() {
 
   /* reputation by foe */
   applyKillReputation(enemy);
+  if (typeof karmaFromKill === "function") karmaFromKill(enemy);
+  if (enemy.typeId === "bandit" && typeof tryEndInvasion === "function") tryEndInvasion();
 
   /* coins / goods */
   if (Math.random() < 0.6) {
@@ -331,8 +334,13 @@ function winCombat() {
   const wasChallenge = !!enemy.sectChallenge;
   if (typeof onEnemyDefeated === "function") onEnemyDefeated(enemy);
   if (enemy.dungeon && typeof onDungeonFloorCleared === "function") onDungeonFloorCleared(enemy);
-  state.enemy = null;
-  state.poison = 0;
+  if (enemy.worldEventId && typeof onWorldEventEnemyDefeated === "function") onWorldEventEnemyDefeated(enemy);
+  if (enemy.tournament && typeof onTournamentRoundWon === "function") onTournamentRoundWon(enemy);
+  if (enemy.duel && typeof onDuelResolved === "function") onDuelResolved(true, enemy);
+
+  /* a tournament round spawns the next opponent — keep it; otherwise clear */
+  if (state._keepEnemy) state._keepEnemy = false;
+  else { state.enemy = null; state.poison = 0; }
 
   questEvent("kill", { enemy, questId, typeId: enemy.typeId, rankIdx: enemy.rankIdx, boss: enemy.boss, name: enemy.name });
   if (wasChallenge && typeof resolveSectChallenge === "function") resolveSectChallenge(true);
@@ -366,6 +374,8 @@ function loseCombat() {
   const wasChallenge = !!(enemy && enemy.sectChallenge);
   if (enemy && typeof onPlayerDefeated === "function") onPlayerDefeated(enemy);
   if (enemy && enemy.dungeon && typeof onDungeonEnd === "function") onDungeonEnd(false);
+  if (enemy && enemy.tournament && typeof onTournamentEnd === "function") onTournamentEnd(false, enemy, "Defeat");
+  if (enemy && enemy.duel && typeof onDuelResolved === "function") onDuelResolved(false, enemy);
   state.enemy = null;
   if (wasChallenge && typeof resolveSectChallenge === "function") resolveSectChallenge(false);
   if (hadEscort) failEscort("You fell in battle; your charge was lost.");
@@ -384,6 +394,8 @@ function flee() {
     state.enemy = null;
     state.poison = 0;
     if (escaped.dungeon && typeof onDungeonEnd === "function") onDungeonEnd(true);
+    if (escaped.tournament && typeof onTournamentEnd === "function") onTournamentEnd(false, escaped, "Escape");
+    if (escaped.duel && typeof onDuelResolved === "function") onDuelResolved(false, escaped);
     if (hadEscort) failEscort("You abandoned your charge to flee.");
     save(); render();
     return;

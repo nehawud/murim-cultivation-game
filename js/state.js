@@ -52,6 +52,20 @@ function defaultState() {
     secretRealms: {},
     dungeonsCleared: 0,
 
+    /* morality & notoriety */
+    karma: { good: 0, evil: 0 },
+    bounty: 0,
+    titles: [],
+
+    /* dynamic world events */
+    worldEvents: [],
+
+    /* arena, rankings & tournaments */
+    arena: { rating: 1000, wins: 0, losses: 0, streak: 0, best: 1000 },
+    leaderboard: [],
+    season: null,
+    tournament: null,
+
     /* bonds & relationships (per-NPC score + type, separate from faction standing) */
     npcs: {
       elder_rong: { score: 12, type: null, met: true, region: "willow_creek", history: [], wins: 0, losses: 0, power: 0, status: "active" },
@@ -179,6 +193,17 @@ function load() {
     if (typeof s.contribution !== "number") s.contribution = 0;
     if (s.sect && !sectById(s.sect)) s.sect = null;
     if (s.bloodline && !gachaClanById(s.bloodline)) s.bloodline = null;
+    if (!s.karma || typeof s.karma !== "object") s.karma = { good: 0, evil: 0 };
+    if (typeof s.karma.good !== "number") s.karma.good = 0;
+    if (typeof s.karma.evil !== "number") s.karma.evil = 0;
+    if (typeof s.bounty !== "number") s.bounty = 0;
+    if (!Array.isArray(s.titles)) s.titles = [];
+    if (!Array.isArray(s.worldEvents)) s.worldEvents = [];
+    s.worldEvents = s.worldEvents.filter((e) => e && typeof e.endsAt === "number" && e.endsAt > Date.now());
+    if (!s.arena || typeof s.arena !== "object") s.arena = { rating: 1000, wins: 0, losses: 0, streak: 0, best: 1000 };
+    if (!Array.isArray(s.leaderboard)) s.leaderboard = [];
+    s.season = null;      /* rebuilt fresh by ensureArena() */
+    s.tournament = null;  /* an interrupted tournament is forfeit */
     if (typeof s.region !== "string" || !REGIONS.some((r) => r.id === s.region)) s.region = startRegion();
     if (typeof s.realm !== "number") s.realm = 0;
     if (typeof s.stage !== "number") s.stage = 1;

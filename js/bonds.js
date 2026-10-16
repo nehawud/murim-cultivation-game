@@ -82,6 +82,9 @@ function changeBond(id, action, opts = {}) {
   else if (st.score <= -81) setBondType(id, "nemesis", "their grudge is absolute");
   else if (st.score <= -51 && !st.type) setBondType(id, "enemy");
 
+  /* morally-weighted interactions feed the karma ledger */
+  if (typeof karmaFromBondAction === "function") karmaFromBondAction(action);
+
   return delta;
 }
 
@@ -117,6 +120,10 @@ function giftNpc(id, tier) {
   const n = npcById(id);
   const g = BOND_GIFTS.find((x) => x.tier === tier);
   if (!n || !g) return;
+  if (typeof npcKarmaReaction === "function") {
+    const r = npcKarmaReaction(id);
+    if (r && r.refuses) { addLog(r.text, "bad"); render(); return; }
+  }
   const st = ensureNpcState(id);
   if (state.silver < g.cost) { addLog(`A ${g.name} costs ${g.cost} silver (you have ${state.silver}).`, "bad"); render(); return; }
   state.silver -= g.cost;
@@ -137,6 +144,10 @@ function canSeekTraining(id) {
 function seekTraining(id) {
   const n = npcById(id);
   if (!n) return;
+  if (typeof npcKarmaReaction === "function") {
+    const r = npcKarmaReaction(id);
+    if (r && r.refuses) { addLog(r.text, "bad"); render(); return; }
+  }
   if (!canSeekTraining(id)) { addLog(`${n.name} will not train an outsider. Deepen the bond first.`, "bad"); render(); return; }
   const cost = 6; /* training is a favor — it spends goodwill */
   if (bondOf(id) - cost < -100) { addLog(`${n.name} has no goodwill left to spend.`, "bad"); render(); return; }
@@ -206,6 +217,9 @@ function reconcileNpc(id) {
 /* available interactions for the journal UI */
 function npcInteractions(id) {
   const out = [];
+  if (typeof npcRefusesPlayer === "function" && npcRefusesPlayer(id)) {
+    return [{ action: "none", label: "Refuses to deal with you", disabled: true }];
+  }
   for (const g of BOND_GIFTS) out.push({ action: "gift", tier: g.tier, label: `Gift: ${g.name} (${g.cost}s)`, disabled: state.silver < g.cost });
   if (canSeekTraining(id)) out.push({ action: "train", label: "Seek Training (−6 bond)" });
   if (canSpar(id)) out.push({ action: "spar", label: "Spar" });

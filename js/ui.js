@@ -31,6 +31,7 @@ function render() {
   $("stageName").textContent = stageName();
   $("stageGroupTag").textContent = stageGroup(state.stage);
   $("tierTag").textContent = `Tier ${tierOf()} · ${TIER_NAMES[tierOf()]}`;
+  if ($("pathTag") && typeof pathInfo === "function") { const p = pathInfo(); $("pathTag").textContent = `${p.icon} ${p.name}`; $("pathTag").className = `tag ${p.cls}`; }
 
   $("xpText").textContent = `${Math.floor(state.xp)} / ${xpNeed}`;
   $("xpFill").style.width = pct(state.xp, xpNeed) + "%";
@@ -76,6 +77,7 @@ function render() {
   renderClanGacha();
   renderSect();
   renderJournal();
+  renderArena();
   renderInfo();
   renderLog();
   renderCombat();
@@ -230,6 +232,65 @@ function fmtDuration(ms) {
 
 /* ============================== WORLD TAB ============================== */
 
+function worldEventCard(ev) {
+  const def = WORLD_EVENT_TYPES[ev.kind];
+  const region = regionById(ev.regionId);
+  const here = ev.regionId === state.region;
+  const btn = (action, id, label, ware) =>
+    `<button class="act small" data-action="${action}"${id ? ` data-id="${id}"` : ""}${ware ? ` data-ware="${ware}"` : ""}>${label}</button>`;
+
+  let html = `<div class="event-card-inline">
+    <div class="region-head">
+      <span class="dungeon-name">${def.icon} ${ev.title}</span>
+      <span class="tag">${region.name}</span>
+      <span class="tag gold">${fmtDuration(ev.endsAt - Date.now())} left</span>
+    </div>
+    <p class="region-desc">${ev.desc}</p>`;
+
+  switch (ev.kind) {
+    case "bandit_invasion":
+      html += here
+        ? `<div class="hint">Cull raiders here to break the invasion. Current unrest: <b>${threatOf(ev.regionId)}%</b>.</div>`
+        : `<div class="hint">Travel to ${region.name} to fight the raiders.</div>`;
+      break;
+    case "sect_war": {
+      const [a, b] = ev.data.factions || [];
+      html += here
+        ? `<div class="hub-actions"><button class="act small" data-action="eventSide" data-id="${ev.id}" data-faction="${a}">Side with ${eventLabel(a)}</button><button class="act small" data-action="eventSide" data-id="${ev.id}" data-faction="${b}">Side with ${eventLabel(b)}</button></div>`
+        : `<div class="hint">The war rages in ${region.name}. Take a side there to earn standing.</div>`;
+      break;
+    }
+    case "traveling_merchant": {
+      const wares = ev.data.wares || [];
+      html += here
+        ? `<div class="essence-shop">${wares.map((w) => `<div class="shop-item"><div><b>${w.name}</b><span class="hint">${w.kind}${w.amount ? " ×" + w.amount : ""}</span></div>${(ev.data.sold || []).includes(w.id) ? '<span class="hint">sold out</span>' : btn("eventBuy", ev.id, `${w.cost}s`, w.id)}</div>`).join("")}</div>`
+        : `<div class="hint">The merchant's stall is set up in ${region.name}.</div>`;
+      break;
+    }
+    case "mysterious_stranger":
+      html += here
+        ? `<div class="hub-actions">${btn("eventStranger", ev.id, "Approach the stranger")}</div>`
+        : `<div class="hint">A cloaked stranger waits in ${region.name}.</div>`;
+      break;
+    case "rare_beast":
+      html += here
+        ? `<div class="hub-actions">${btn("hunt", null, "Track the beast (Hunt)")}</div>`
+        : `<div class="hint">The beast stalks ${region.name}. Travel there to hunt it.</div>`;
+      break;
+    case "contested_treasure":
+      html += here
+        ? `<div class="hub-actions">${btn("eventClaim", ev.id, "Claim the treasure")}</div>`
+        : `<div class="hint">The unclaimed treasure lies in ${region.name}.</div>`;
+      break;
+    case "world_boss":
+      html += here
+        ? `<div class="hub-actions">${btn("hunt", null, "Confront the world boss (Hunt)")}</div>`
+        : `<div class="hint">A world boss stirs in ${region.name}. Gather your courage and travel there.</div>`;
+      break;
+  }
+  return html + `</div>`;
+}
+
 function renderWorld() {
   const panel = document.querySelector('[data-panel="world"]');
   const region = currentRegion();
@@ -253,6 +314,12 @@ function renderWorld() {
     </div>`;
   }
   html += `</div>`;
+
+  /* active world events */
+  const evs = typeof activeWorldEvents === "function" ? activeWorldEvents() : [];
+  html += `<h3 class="section-title">World Events <span class="hint">(${evs.length})</span></h3>`;
+  if (!evs.length) html += `<p class="hint">The jianghu is quiet for now — but invasions, wars, wandering merchants, and beasts appear in time.</p>`;
+  for (const ev of evs) html += worldEventCard(ev);
 
   /* gathered materials */
   const mats = Object.entries(state.materials).filter(([, c]) => c > 0);
@@ -552,6 +619,27 @@ function renderFaction() {
   html += `</ul>`;
   html += `<p class="hint">Helping villages and defeating criminals raises your honor; harming the innocent lowers it. Reputation: <b>${reputationTitle()}</b> · Renown: <b>${renownTitle()}</b>.</p>`;
 
+  /* morality ledger */
+  if (typeof pathInfo === "function") {
+  const path = pathInfo();
+  const wl = wantedInfo();
+  const ks = karmaScore();
+  html += `<h3 class="section-title">Morality — ${path.icon} ${path.name}</h3>
+    <div class="morality-card ${path.cls}">
+      <div class="region-meta">
+        <span>Path: <b>${path.name}</b></span>
+        <span>Karma: <b>${ks >= 0 ? "+" : ""}${ks}</b> (good ${state.karma.good} / evil ${state.karma.evil})</span>
+        <span>Bounty: <b>${state.bounty}</b></span>
+        <span>Wanted: <b class="${wantedLevel() ? "bad" : ""}">${wl.name}</b></span>
+      </div>
+      <p class="hint">${path.desc}</p>
+      <ul class="path-perks">${pathPerks().map((p) => `<li>${p}</li>`).join("")}</ul>
+    </div>`;
+  if (state.titles.length) {
+    html += `<p class="hint">Titles: ${state.titles.map((t) => `<span class="tag gold">${t.name}</span>`).join(" ")}</p>`;
+  }
+  }
+
   /* sect standing */
   const knownSects = SECTS.filter((s) => state.sect === s.id || state.sectFlags["found_" + s.id] || (state.standing[s.id] || 0) !== 0);
   if (knownSects.length) {
@@ -803,6 +891,8 @@ function npcCard(npc, reveal) {
 
   const hist = (st.history || []).slice(0, 4).map((h) => `<li>${h.text}</li>`).join("");
   const benefits = bondBenefits(npc.id);
+  const reaction = typeof npcKarmaReaction === "function" ? npcKarmaReaction(npc.id) : null;
+  const reactionLine = reaction && reaction.refuses ? `<div class="npc-line bad">${reaction.text}</div>` : "";
   const statusText = st.status && st.status !== "active" ? `<span class="tag ${st.status === "hunting" ? "worst" : "gold"}">${st.status}</span>` : "";
   const record = (st.wins || st.losses) ? `<div class="npc-line">Record vs you: <b>${st.wins || 0}W</b> / ${st.losses || 0}L</div>` : "";
   const actions = (typeof npcInteractions === "function" ? npcInteractions(npc.id) : [])
@@ -817,6 +907,7 @@ function npcCard(npc, reveal) {
     <div class="npc-line">Last known: ${region}${npc.sect ? ` · Sect standing: ${standing}` : ""}</div>
     <div class="npc-rel"><span class="standing-val ${band.cls}">${band.name}</span> <span class="hint">score ${score >= 0 ? "+" : ""}${score}</span></div>
     ${record}
+    ${reactionLine}
     ${hist ? `<ul class="npc-hist">${hist}</ul>` : ""}
     ${benefits.length ? `<div class="npc-benefits">${benefits.map((b) => `<span class="tag gold">${b}</span>`).join(" ")}</div>` : ""}
     ${actions ? `<div class="npc-actions">${actions}</div>` : ""}
@@ -853,6 +944,64 @@ function renderJournal() {
     html += `<p class="hint">Rumours of those you have not yet met. Investigate to learn more.</p>`;
     html += unmet.slice(0, 8).map((n) => npcCard(n, false)).join("");
   }
+
+  panel.innerHTML = html;
+}
+
+/* ============================== ARENA TAB ============================== */
+
+function renderArena() {
+  const panel = document.querySelector('[data-panel="arena"]');
+  if (!panel || typeof ensureArena !== "function") return;
+  ensureArena();
+  let html = "";
+
+  const rank = playerRank();
+  const seasonLeft = fmtDuration(state.season.endsAt - Date.now());
+
+  html += `<div class="gacha-head">
+    <div class="gacha-stat"><span class="num">${rank}</span><span class="lbl">Your Rank</span></div>
+    <div class="gacha-stat"><span class="num">${state.arena.rating}</span><span class="lbl">Rating</span></div>
+    <div class="gacha-stat"><span class="num">${arenaRecord()}</span><span class="lbl">Record</span></div>
+    <div class="gacha-stat"><span class="num">${state.arena.streak}</span><span class="lbl">Streak</span></div>
+  </div>`;
+  html += `<p class="hint">Season #${state.season.index} — resets in <b>${seasonLeft}</b>. Best rating: ${state.arena.best}.</p>`;
+
+  if (state.tournament) {
+    const def = TOURNAMENTS[state.tournament.kind];
+    html += `<div class="sect-card mine">
+      <div class="sect-head"><h4>${def.name}</h4><span class="tag gold">Round ${state.tournament.wins + 1}/${def.rounds}</span></div>
+      <div class="sect-buff">${def.desc}</div>
+      <div class="hub-actions">${state.enemy
+        ? '<span class="hint">Resolve the current bout in the arena.</span>'
+        : `<button class="act small" data-action="arenaTournament" data-kind="${state.tournament.kind}">Continue</button>`}
+        <button class="act small" data-action="arenaForfeit">Forfeit</button></div>
+    </div>`;
+  } else {
+    const rival = typeof nearestRival === "function" ? nearestRival() : null;
+    html += `<h3 class="section-title">Ranked Duel</h3>
+      <p class="hint">${rival ? `Your nearest rival on the board is <b>${rival.name}</b>, ${rival.epithet} (rating ${rival.rating}).` : "No rivals are on the board."}</p>
+      <button class="act primary small" data-action="arenaDuel" ${state.enemy ? "disabled" : ""}>Challenge ${rival ? rival.name : "a rival"}</button>`;
+    html += `<h3 class="section-title">Tournaments</h3><div class="essence-shop">`;
+    for (const t of Object.values(TOURNAMENTS)) {
+      const locked = (t.id === "sect" && !state.sect) || !!state.enemy;
+      html += `<div class="shop-item"><div><b>${t.name}</b><span class="hint">${t.desc}</span></div>
+        <button class="act small" data-action="arenaTournament" data-kind="${t.id}" ${locked ? "disabled" : ""}>Enter</button></div>`;
+    }
+    html += `</div>`;
+  }
+
+  if (titleList().length) {
+    html += `<h3 class="section-title">Titles</h3><p class="hint">${titleList().map((t) => `<span class="tag gold">${t.name}</span>`).join(" ")}</p>`;
+  }
+
+  html += `<h3 class="section-title">Jianghu Rankings</h3><div class="standing-list">`;
+  const board = state.leaderboard.slice().sort((a, b) => b.rating - a.rating);
+  board.forEach((e, i) => {
+    html += `<li class="${i < 3 ? "top" : ""}"><span>${i + 1}. ${e.name} <span class="hint">${e.epithet}</span></span><span class="standing-val">${e.rating}</span></li>`;
+  });
+  html += `</div>`;
+  html += `<p class="hint">Your rating: <b>${state.arena.rating}</b>. Win duels and tournaments to climb the board — the season resets periodically.</p>`;
 
   panel.innerHTML = html;
 }
